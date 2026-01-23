@@ -1,6 +1,6 @@
 /* global XLSX */
 (() => {
-  const XLSX_PATH = "dashboard/assets/data/trainings.xlsx";
+  const XLSX_PATH = "assets/data/trainings.xlsx";
   const SHEET_NAME = "Trainings";
 
   // --- UI Elements ---
