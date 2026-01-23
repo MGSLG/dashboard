@@ -45,12 +45,23 @@ body{
 .brand{
   display:flex; align-items:center; gap:10px;
 }
-.logo{
-  width:42px;height:42px;border-radius:14px;
-  display:grid;place-items:center;
-  background:linear-gradient(135deg, #1d4ed8, #60a5fa);
-  color:#fff;font-weight:700;
+.logo {
+  width: 36px;          /* smaller container */
+  height: 36px;
+  border-radius: 10px;
+  background: #ffffff;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
+
+.logo img {
+  width: 80%;           /* KEY CHANGE */
+  height: 80%;
+  object-fit: contain;
+}
+
 .brand-title{font-weight:800; letter-spacing:.4px}
 .brand-subtitle{font-size:.85rem; color:var(--muted); margin-top:2px}
 
