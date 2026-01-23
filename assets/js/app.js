@@ -82,6 +82,11 @@
     const wb = XLSX.read(arrayBuffer, { type: "array" });
     const ws = wb.Sheets[SHEET_NAME] || wb.Sheets[wb.SheetNames[0]];
     const json = XLSX.utils.sheet_to_json(ws, { defval: "" });
+    console.log("XLSX_PATH used:", XLSX_PATH);
+    console.log("Sheets found:", wb.SheetNames);
+    console.log("Rows read from sheet:", json.length);
+    console.log("First row:", json[0]);
+
 
     // Normalize rows
     rows = json
@@ -465,7 +470,7 @@
       renderAll();
     } catch (err) {
       console.error(err);
-      calendarGrid.innerHTML = `<div class="hint">Failed to load Excel data. Check console and verify <code>${XLSX_PATH}</code> exists.</div>`;
+      calendarGrid.innerHTML = `<div class="hint">Failed to load Excel data: <strong>${escapeHtml(err.message)}</strong><br>Path: <code>${escapeHtml(XLSX_PATH)}</code></div>`;
       enrollList.innerHTML = `<div class="hint">No data loaded.</div>`;
       upcomingList.innerHTML = `<div class="hint">No data loaded.</div>`;
       workshopStrip.innerHTML = `<div class="hint">No data loaded.</div>`;
