@@ -1,142 +1,208 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>C.O.E Dashboard</title>
-  <link rel="stylesheet" href="assets/css/styles.css" />
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Weekly Schedule 3D Slideshow</title>
+  <style>
+    /*
+      Basic reset and layout rules. We remove default padding/margins and ensure
+      the page stretches to fill the viewport. The body uses a gradient
+      background and centers its content.
+    */
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
 
-  <!-- SheetJS (xlsx) -->
-  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.19.3/dist/xlsx.full.min.js"></script>
+    body {
+      /* A smooth multi‑color gradient inspired by the provided example image. */
+      background: linear-gradient(120deg, #ff758c, #ff7eb3, #6cc1ff, #5f86f2);
+      background-size: 400% 400%;
+      animation: gradientShift 30s ease infinite;
+      font-family: Arial, Helvetica, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      min-height: 100vh;
+      color: #ffffff;
+      overflow: hidden;
+    }
+
+    @keyframes gradientShift {
+      0% {
+        background-position: 0% 50%;
+      }
+      50% {
+        background-position: 100% 50%;
+      }
+      100% {
+        background-position: 0% 50%;
+      }
+    }
+
+    /* Heading style */
+    h1 {
+      margin-top: 40px;
+      margin-bottom: 20px;
+      font-size: 2.5rem;
+      text-align: center;
+      text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+    }
+
+    /* Slideshow container sets perspective for 3D transforms and centres the slides */
+    .slideshow {
+      position: relative;
+      width: 80%;
+      max-width: 900px;
+      height: 800px;
+      margin: 0 auto;
+      perspective: 1500px;
+      transform-style: preserve-3d;
+    }
+
+    /* Each slide is absolutely positioned within the container.  The width
+       and height are tuned for portrait (A4) images, which are taller than
+       they are wide.  JavaScript will adjust their transforms to create a
+       3D carousel effect. */
+    .slide {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 40%;
+      height: 85%;
+      transform-style: preserve-3d;
+      transform-origin: center center;
+      /* Smooth transitions when changing transform and opacity */
+      transition: transform 1s ease, opacity 1s ease;
+      /* Add subtle shadows to enhance depth */
+      box-shadow: 0 15px 40px rgba(0, 0, 0, 0.3);
+      border-radius: 10px;
+      overflow: hidden;
+    }
+
+    /* Ensure images fill their parent container while keeping aspect ratio */
+    .slide img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+      user-select: none;
+      pointer-events: none;
+    }
+  </style>
 </head>
 <body>
-  <header class="topbar">
-    <div class="brand">
-      <div class="logo"><img src="assets/images/logo/coe-logo.png" alt="Center of Excellence Logo" /></div>
-      <div>
-        <div class="brand-title">C.O.E</div>
-        <div class="brand-subtitle">Center of Excellence</div>
-      </div>
-    </div>
+  <h1>Weekly Schedule</h1>
+  <div class="slideshow" id="slideshow"></div>
 
-    <button class="menu-btn" id="menuBtn" aria-label="Open menu">☰</button>
+  <script>
+    // We'll determine the total number of images dynamically by attempting to
+    // load sequentially named files (slide1.png, slide2.png, …) until we hit
+    // a loading error. All discovered filenames are stored in the `images`
+    // array. Once loading completes, we initialise the slideshow.
 
-    <nav class="nav" id="nav">
-      <a href="#calendar">Calendar</a>
-      <a href="#resources">Resources</a>
-      <a href="#about">About</a>
-      <a href="#admin" class="pill">Admin</a>
-    </nav>
-  </header>
+    const slideshow = document.getElementById('slideshow');
+    const images = [];
+    let TOTAL_SLIDES = 0;
+    let VISIBLE_COUNT = 0;
+    const POSITION_SETTINGS = [
+      { x: -300, z: -200, rotateY: 40, scale: 0.6, opacity: 0.4 }, // far left
+      { x: -170, z: -100, rotateY: 30, scale: 0.8, opacity: 0.7 }, // left
+      { x: 0,    z: 0,    rotateY: 0,  scale: 1.0, opacity: 1.0 }, // centre
+      { x: 170,  z: -100, rotateY: -30,scale: 0.8, opacity: 0.7 }, // right
+      { x: 300,  z: -200, rotateY: -40,scale: 0.6, opacity: 0.4 }  // far right
+    ];
+    let slideElements = [];
+    let nextImageIndex = 0; // index for the next image to load from images array
 
-  <main class="container">
-    <section class="controls">
-      <div class="controls-left">
-        <h1 class="page-title">Training Dashboard</h1>
-        <p class="page-subtitle">Calendar, enrollments, and public training resources.</p>
-      </div>
+    // Attempt to load images one by one. When an image fails to load, we
+    // conclude that we've reached the end of the available files. The
+    // discovered images are stored in `images` and used later on.
+    function preloadImages(start = 1) {
+      const testImg = new Image();
+      testImg.onload = function() {
+        images.push(`slide${start}.png`);
+        preloadImages(start + 1);
+      };
+      testImg.onerror = function() {
+        TOTAL_SLIDES = images.length;
+        if (TOTAL_SLIDES === 0) {
+          console.warn('No slide images found in the folder.');
+          return;
+        }
+        // Only display up to five slides at once. If there are fewer
+        // available images, adjust accordingly.
+        VISIBLE_COUNT = Math.min(5, TOTAL_SLIDES);
+        nextImageIndex = VISIBLE_COUNT % TOTAL_SLIDES;
+        setupSlides();
+        // Cycle through slides every 10 seconds (10000 milliseconds)
+        setInterval(showNextSlide, 10000);
+      };
+      testImg.src = `slide${start}.png`;
+    }
 
-      <div class="controls-right">
-        <button class="btn" id="reloadBtn">Reload Data</button>
-        <span class="hint">Data source: <code>assets/data/trainings.xlsx</code></span>
-      </div>
-    </section>
+    // Helper to get the filename for a given index from our discovered list.
+    function getImageSrc(index) {
+      return images[index % TOTAL_SLIDES];
+    }
 
-    <section class="layout" id="calendar">
-      <!-- Calendar Card -->
-      <div class="card calendar-card">
-        <div class="card-header">
-          <div>
-            <div class="card-title">Training Calendar</div>
-            <div class="card-subtitle">Upcoming Courses & Events</div>
-          </div>
+    // Create the initial visible slides based on VISIBLE_COUNT.  We only
+    // insert the number of slides required at once; the rest will be
+    // loaded on demand as the carousel rotates.
+    function setupSlides() {
+      for (let i = 0; i < VISIBLE_COUNT; i++) {
+        const slide = document.createElement('div');
+        slide.className = 'slide';
+        const img = document.createElement('img');
+        img.src = getImageSrc(i);
+        slide.appendChild(img);
+        slideshow.appendChild(slide);
+        slideElements.push(slide);
+      }
+      updateSlideTransforms();
+    }
 
-          <div class="calendar-nav">
-            <button class="icon-btn" id="prevMonthBtn" aria-label="Previous month">‹</button>
-            <div class="month-label" id="monthLabel">—</div>
-            <button class="icon-btn" id="nextMonthBtn" aria-label="Next month">›</button>
-          </div>
-        </div>
+    // Apply transforms to each slide based on its current order in the
+    // slideElements array. The middle index ensures the centre slide
+    // occupies POSITION_SETTINGS[2]. When there are fewer than five
+    // visible slides, the offsets map into the same settings array.
+    function updateSlideTransforms() {
+      const middleIndex = Math.floor(VISIBLE_COUNT / 2);
+      slideElements.forEach((slide, i) => {
+        const offset = i - middleIndex;
+        const settings = POSITION_SETTINGS[middleIndex + offset];
+        if (settings) {
+          slide.style.opacity = settings.opacity;
+          slide.style.transform = `translate(-50%, -50%) translateX(${settings.x}px) translateZ(${settings.z}px) rotateY(${settings.rotateY}deg) scale(${settings.scale})`;
+          slide.style.zIndex = 100 - Math.abs(offset);
+        }
+      });
+    }
 
-        <div class="calendar-grid" id="calendarGrid">
-          <!-- JS renders day headers + cells -->
-        </div>
+    // Advance the carousel by one position. We remove the first slide from
+    // the array, append it to the end, update its image source to the next
+    // image in our list, and then apply the transforms.
+    function showNextSlide() {
+      if (TOTAL_SLIDES <= 1) {
+        return; // no need to rotate if there is only one image
+      }
+      const firstSlide = slideElements.shift();
+      // Update the image on the slide we’re recycling
+      const img = firstSlide.querySelector('img');
+      img.src = getImageSrc(nextImageIndex);
+      nextImageIndex = (nextImageIndex + 1) % TOTAL_SLIDES;
+      // Append the recycled slide to the end of the list and DOM
+      slideElements.push(firstSlide);
+      slideshow.appendChild(firstSlide);
+      // Reapply transforms so that each slide smoothly transitions to its new position
+      updateSlideTransforms();
+    }
 
-        <div class="calendar-legend">
-          <span class="legend-pill blue">Workshop</span>
-          <span class="legend-pill orange">Safety</span>
-          <span class="legend-pill green">Skills</span>
-        </div>
-      </div>
-
-      <!-- Right-side (desktop) / stacked (mobile): Enrollments -->
-      <div class="card enroll-card">
-        <div class="card-header">
-          <div>
-            <div class="card-title">Enrollments</div>
-            <div class="card-subtitle">Enrolled vs Expected (Top upcoming)</div>
-          </div>
-        </div>
-
-        <div class="enroll-list" id="enrollList">
-          <!-- JS renders enrollment rows -->
-        </div>
-      </div>
-
-      <!-- Upcoming Trainings -->
-      <div class="card upcoming-card">
-        <div class="card-header">
-          <div>
-            <div class="card-title">Upcoming Trainings</div>
-            <div class="card-subtitle">Next sessions in chronological order</div>
-          </div>
-        </div>
-
-        <div class="upcoming-list" id="upcomingList">
-          <!-- JS renders upcoming list -->
-        </div>
-      </div>
-    </section>
-
-    <section class="resources" id="resources">
-      <div class="section-title-row">
-        <h2 class="section-title">Workshops & Programmes</h2>
-        <div class="section-subtitle">Swipe horizontally on mobile. Tap a card to open gallery, manual, and details.</div>
-      </div>
-
-      <div class="card-strip" id="workshopStrip">
-        <!-- JS renders scrollable cards -->
-      </div>
-    </section>
-  </main>
-
-  <!-- Modal -->
-  <div class="modal-backdrop" id="modalBackdrop" aria-hidden="true">
-    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
-      <div class="modal-header">
-        <div>
-          <div class="modal-title" id="modalTitle">—</div>
-          <div class="modal-subtitle" id="modalSubtitle">—</div>
-        </div>
-        <button class="icon-btn" id="closeModalBtn" aria-label="Close">✕</button>
-      </div>
-
-      <div class="modal-body">
-        <div class="modal-meta" id="modalMeta"></div>
-
-        <div class="gallery" id="modalGallery">
-          <!-- images -->
-        </div>
-
-        <div class="modal-actions" id="modalActions">
-          <!-- manual/video links -->
-        </div>
-
-        <div class="modal-desc" id="modalDesc"></div>
-      </div>
-    </div>
-  </div>
-
-  <script src="assets/js/app.js"></script>
+    // Start loading images on page load
+    preloadImages();
+  </script>
 </body>
 </html>
